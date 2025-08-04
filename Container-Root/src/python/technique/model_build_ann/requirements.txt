@@ -5,4 +5,4 @@ scipy
 joblib
 boto3
 matplotlib
-sklearn
+scikit-learn

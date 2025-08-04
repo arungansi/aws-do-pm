@@ -1,12 +1,24 @@
 FROM pytorch/pytorch:1.9.0-cuda10.2-cudnn7-runtime
 
+# 1) Disable validity checks for archived repos
+RUN printf 'Acquire::Check-Valid-Until "false";\n' \
+    > /etc/apt/apt.conf.d/99no-check-valid-until
+
+# 2) Overwrite sources.list to use archive.debian.org
+RUN sed -i 's|deb http://deb.debian.org/debian buster main|\
+deb http://archive.debian.org/debian buster main|' /etc/apt/sources.list && \
+    sed -i 's|deb http://deb.debian.org/debian buster-updates main|\
+deb http://archive.debian.org/debian buster-updates main|' /etc/apt/sources.list && \
+    sed -i 's|deb http://security.debian.org/debian-security buster/updates main|\
+deb http://archive.debian.org/debian-security buster/updates main|' /etc/apt/sources.list
+
 # Install common tools
 RUN apt-get update -y && \
     apt-get install -y gcc g++ gfortran nano vim-tiny vim iputils-ping dnsutils less curl unzip jq screen
 
 # Configure container
 ENV KUBECTL_COMMAND_HEADERS=false
-ENV PYTHONPATH="/src/python:${PYTHONPATH}"
+ENV PYTHONPATH="/src/python:/opt/conda/bin/python"
 ENV PATH=$PATH:.
 RUN sed -i /etc/vim/vimrc.tiny -e 's/set compatible/set nocompatible/g'
 RUN echo "alias ll='ls -alh --color=auto'" >> /root/.bashrc

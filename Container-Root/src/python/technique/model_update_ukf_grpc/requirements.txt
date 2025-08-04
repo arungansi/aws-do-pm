@@ -1,13 +1,11 @@
 pandas
-sys
 numpy
-Pandas
 tqdm
 scipy
 matplotlib
 seaborn
 joblib
-sklearn
+scikit-learn
 argparse
 grpcio
 protobuf

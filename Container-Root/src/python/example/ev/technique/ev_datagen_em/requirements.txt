@@ -5,6 +5,6 @@ scipy
 matplotlib
 seaborn
 joblib
-sklearn
+scikit-learn
 argparse
 debugpy
