@@ -1,16 +1,16 @@
 FROM pytorch/pytorch:1.9.0-cuda10.2-cudnn7-runtime
 
-# 1) Disable validity checks for archived repos
-RUN printf 'Acquire::Check-Valid-Until "false";\n' \
-    > /etc/apt/apt.conf.d/99no-check-valid-until
+# # 1) Disable validity checks for archived repos
+# RUN printf 'Acquire::Check-Valid-Until "false";\n' \
+#     > /etc/apt/apt.conf.d/99no-check-valid-until
 
-# 2) Overwrite sources.list to use archive.debian.org
-RUN sed -i 's|deb http://deb.debian.org/debian buster main|\
-deb http://archive.debian.org/debian buster main|' /etc/apt/sources.list && \
-    sed -i 's|deb http://deb.debian.org/debian buster-updates main|\
-deb http://archive.debian.org/debian buster-updates main|' /etc/apt/sources.list && \
-    sed -i 's|deb http://security.debian.org/debian-security buster/updates main|\
-deb http://archive.debian.org/debian-security buster/updates main|' /etc/apt/sources.list
+# # 2) Overwrite sources.list to use archive.debian.org
+# RUN sed -i 's|deb http://deb.debian.org/debian buster main|\
+# deb http://archive.debian.org/debian buster main|' /etc/apt/sources.list && \
+#     sed -i 's|deb http://deb.debian.org/debian buster-updates main|\
+# deb http://archive.debian.org/debian buster-updates main|' /etc/apt/sources.list && \
+#     sed -i 's|deb http://security.debian.org/debian-security buster/updates main|\
+# deb http://archive.debian.org/debian-security buster/updates main|' /etc/apt/sources.list
 
 # Install common tools
 RUN apt-get update -y && \
@@ -40,26 +40,72 @@ COPY Container-Root/test*.sh /
 COPY Container-Root/src/python/example/ev/technique/ev_data_select/technique_registration_ev_data_select.json /src/python/example/ev/technique/ev_data_select/technique_registration_ev_data_select.json
 COPY Container-Root/src/python/example/ev/ev_fleet_demo*.* /src/python/example/ev/
 
-# Run install scripts
-ADD install /install
+
 # Install AWS cli
-RUN /install/install-aws-cli.sh
+RUN echo "Installing aws-cli on Linux ..." && \
+    (cd /tmp && \
+    curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip -q awscliv2.zip && \
+    ./aws/install && \
+    rm -f awscliv2.zip && \
+    rm -rf ./aws) && \
+    which aws && \
+    aws --version
 # Install grpcurl
-RUN /install/install-grpcurl.sh
+RUN echo "Installing grpcurl..." && \
+    curl -L -o grpcurl.tar.gz https://github.com/fullstorydev/grpcurl/releases/download/v1.8.5/grpcurl_1.8.5_linux_x86_64.tar.gz && \
+    gunzip ./grpcurl.tar.gz && \
+    tar xvf grpcurl.tar && \
+    mv ./grpcurl /usr/local/bin && \
+    mv LICENSE /usr/local/bin/grpcurl-LICENSE && \
+    rm -rf grpcurl.tar
+
 # Install Docker
-RUN /install/install-docker.sh
+RUN echo "Installing Docker..." && \
+    apt-get remove -y docker docker-engine docker.io containerd runc && \
+    apt-get update && \
+    apt-get install -y ca-certificates curl gnupg lsb-release apt-transport-https software-properties-common iproute2 && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io
+
 # Install Docker Compose
-RUN /install/install-docker-compose.sh
+RUN echo "Installing docker-compose on Linux..." && \
+    curl -L "https://github.com/docker/compose/releases/download/1.29.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose && \
+    docker-compose --version
+
 # Install kubectl
-RUN /install/install-kubectl.sh
+RUN echo "Installing kubectl..." && \
+    curl -o kubectl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    chmod +x ./kubectl && \
+    mv ./kubectl /usr/local/bin && \
+    kubectl version --client
 # Install kubectx
-RUN /install/install-kubectx.sh
-# Install and configure kubeps1
-RUN /install/install-kubeps1.sh
+RUN echo "Installing kubectx and kubens..." && \
+    (cd /tmp && \
+    git clone https://github.com/ahmetb/kubectx && \
+    mv kubectx /opt && \
+    ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx && \
+    ln -s /opt/kubectx/kubens /usr/local/bin/kubens)
+
+# Install and configure kube-ps1
+RUN echo "Installing and configuring kube-ps1..." && \
+    curl -L -o /root/kube-ps1.sh https://github.com/jonmosco/kube-ps1/raw/master/kube-ps1.sh && \
+    echo -e '\n# Kubernetes aliases and prompt\nalias ll='\''ls -alh --color=auto'\''\nalias kon='\''touch ~/.kubeon; source ~/.bashrc'\''\nalias koff='\''rm -f ~/.kubeon; source ~/.bashrc'\''\nalias k='\''kubectl'\''\nalias kctl='\''kubectl'\''\nalias kc='\''kubectx'\''\nalias kn='\''kubens'\''\nalias kt='\''kubetail'\''\nalias ks='\''kubectl node-shell'\''\n\nif [ -f ~/.kubeon ]; then\n        source ~/kube-ps1.sh\n        PS1='\''[\u@\h \W \$(kube_ps1)]\$ '\''\nfi' >> /root/.bashrc
+
 # Install kubetail
-RUN /install/install-kubetail.sh
+RUN echo "Installing kubetail..." && \
+    curl -o /tmp/kubetail https://raw.githubusercontent.com/johanhaleby/kubetail/master/kubetail && \
+    chmod +x /tmp/kubetail && \
+    mv /tmp/kubetail /usr/local/bin/kubetail
+
 # Install kubeshell
-RUN /install/install-kubeshell.sh
+RUN echo "Installing kubeshell..." && \
+    curl -LO https://github.com/kvaps/kubectl-node-shell/raw/master/kubectl-node_shell && \
+    chmod +x ./kubectl-node_shell && \
+    mv ./kubectl-node_shell /usr/local/bin/kubectl-node_shell
 
 # Install Python Libraries
 RUN pip install --upgrade pip

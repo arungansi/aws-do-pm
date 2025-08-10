@@ -3,7 +3,7 @@
 The operations included in `ev-demo` are shown on the following flowchart:
 
 <div align="center">
-<img src="docs/img/ev-demo-flowchart.png" width="90%" />
+<img src="img/ev-demo-flowchart.png" width="90%" />
 <br/>
 Fig 1. - ev-demo flowchart 
 </div>
